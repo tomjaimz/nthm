@@ -1,0 +1,41 @@
+<style>
+    body {
+        font: 13.333px sans-serif;
+    }
+
+    #autoConnectCheckbox {
+        vertical-align: middle;
+        position: relative;
+        bottom: 0.08em
+    }
+
+    #log {
+        height: 400px;
+        overflow: auto;
+        margin: 10px;
+    }
+
+    label {
+        display: inline-block;
+        text-align: right;
+        width: 200px;
+        padding-right: 10px;
+        margin: 0px;
+    }
+</style>
+<div>
+    <label for="autoConnectCheckbox"></label><input id="autoConnectCheckbox" type="checkbox" /> Automatically
+    Connect<br />
+    <label for="clientId">Client ID</label><input id="clientId" placeholder="Enter Client ID"> <button
+        id="saveClientId">Save</button><br />
+    <label for="clientSecret">Client Secret</label><input type="password" id="clientSecret"
+        placeholder="Enter Client Secret"> <button id="saveClientSecret">Save</button><br />
+    <label for="redirectURI">Redirect URI</label><input id="redirectURI" placeholder="Enter Redirect URI"> <button
+        id="saveRedirectURI">Save</button><br />
+    <label for="accessToken">Access Token</label><input id="accessToken" placeholder="Enter Access Token"><br />
+    <label for="refreshToken">Refresh Token</label><input id="refreshToken" placeholder="Enter Refresh Token"><br />
+    <label for="urlInput">URI/URL to Play</label><input id="urlInput" placeholder="Enter URL or URI"> <button
+        id="playButton">Play</button>
+</div>
+<p id="actions"></p>
+<div id="log"></div>
