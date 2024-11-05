@@ -28,6 +28,9 @@ const setData = (input) => {
     fs.writeFileSync(SETTINGS_FILENAME, JSON.stringify(settings));
 };
 
+const getFile = (filename) =>
+    fs.existsSync(filename) && fs.readFileSync(filename);
+
 const getSettings = async () => {
     const fileContents = getFile(SETTINGS_FILENAME);
     if (fileContents) {
@@ -37,14 +40,9 @@ const getSettings = async () => {
     }
 };
 
-const getFile = (filename) =>
-    fs.existsSync(filename) && fs.readFileSync(filename);
-
 const getAuthorizeURL = () => {
     for (const state in verifications) {
-        console.log(
-            `${state} ${verifications[state].expiry - new Date().getTime()}`
-        );
+        // delete old verifications
         if (verifications[state].expiry < new Date().getTime()) {
             delete verifications[state];
         }
@@ -77,100 +75,86 @@ const getAuthorizeURL = () => {
     return Location;
 };
 
-const CT_IX = { "Content-Type": "image/x-icon" };
-const CT_AJ = { "Content-Type": "application/json" };
-const CT_TH = { "Content-Type": "text/html" };
-const CT_TP = { "Content-Type": "text/plain" };
-const CT_AX = { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" };
+// Just to be tidier
+const CT = "Content-Type"
+const AJ = "application/json";
+const AX = "application/x-www-form-urlencoded;charset=UTF-8";
+const IX = "image/x-icon";
+const TH = "text/html";
+const TP = "text/plain";
 
-const createLocalhost = () => {
-    http.createServer(async (req, res) => {
-        try {
-            const { pathname } = new URL(req.url, `https://${req.headers.host}`);
-            if (pathname === "/") {
-                res.writeHead(200, CT_TH).end(getFile(BODY_HTML));
-                return;
-            }
-            if (pathname === "/script.js") {
-                res.writeHead(200, CT_AJ).end(getFile(SCRIPT_FILENAME));
-                return;
-            }
-            if (pathname === "/favicon.ico") {
-                res.writeHead(200, CT_IX).write(Buffer.from(FAVICON_BASE64, "base64"));
-                res.end();
-                return;
-            }
-            if (pathname === "/authorizeUrl") {
-                res.writeHead(302, { Location: getAuthorizeURL() }).end();
-                return;
-            }
-            if (pathname === "/settings" && req.method === "GET") {
-                res.writeHead(200, CT_AJ).end(JSON.stringify(settings));
-                return;
-            }
-            if (pathname === "/settings" && req.method === "PUT") {
-                let data = "";
-                req
-                    .on("data", (c) => { data += c; })
-                    .on("end", async () => {
-                        try {
-                            setData(JSON.parse(data));
-                            res.writeHead(200).end();
-                            return;
-                        } catch (e) {
-                            res.writeHead(400, CT_AJ).end(JSON.stringify(e));
-                            return;
-                        }
-                    });
-                return;
-            }
-            if (pathname === "/requestToken") {
-                let data = "";
-                req
-                    .on("data", (c) => { data += c; })
-                    .on("end", async () => {
-                        try {
-                            const parsedData = JSON.parse(data);
-                            const params = { grant_type: parsedData.grant_type };
-                            if (params.grant_type === "authorization_code") {
-                                params.code = parsedData.code
-                                params.redirect_uri = parsedData.redirect_uri
-                                params.code_verifier = verifications[parsedData.state].codeVerifier
-                            }
-                            if (params.grant_type === "refresh_token") {
-                                params.refresh_token = parsedData.refresh_token;
-                            }
-                            const response = await fetch(API_TOKEN_URL, {
-                                method: "POST",
-                                body: new URLSearchParams(params).toString(),
-                                headers: {
-                                    ...CT_AX,
-                                    Authorization: `Basic ${Buffer.from(`${settings.client_id}:${settings.client_secret}`).toString("base64")}`,
-                                },
-                            });
-                            if (response.ok) {
-                                res.writeHead(200, CT_AJ).end(JSON.stringify(await response.json()));
-                            } else {
-                                res.writeHead(response.status, CT_AJ).end(JSON.stringify(await response.text()));
-                            }
-                        } catch (e) {
-                            console.error(e);
-                            res.writeHead(e.statusCode, CT_AJ).end(JSON.stringify(e));
-                        }
-                    });
-                return;
-            }
-            res.writeHead(404, CT_TP).end();
-        } catch (e) {
-            console.error(e);
+const readReq = (req) => new Promise(resolve => {
+    let d = "";
+    req.on("data", (c) => { d += c }).on("end", () => resolve(d))
+})
+
+const server = async (req, res) => {
+    try {
+        const { pathname } = new URL(req.url, `https://${req.headers.host}`);
+        if (pathname === "/") {
+            return res.writeHead(200, { CT: TH }).end(getFile(BODY_HTML));
         }
-    })
-        .listen(PORT);
-};
+        if (pathname === "/script.js") {
+            return res.writeHead(200, { CT: AJ }).end(getFile(SCRIPT_FILENAME));
+        }
+        if (pathname === "/favicon.ico") {
+            return res.writeHead(200, { CT: IX }).write(Buffer.from(FAVICON_BASE64, "base64"))
+        }
+        if (pathname === "/authorizeUrl") {
+            return res.writeHead(302, { Location: getAuthorizeURL() }).end();
+        }
+        if (pathname === "/settings" && req.method === "GET") {
+            return res.writeHead(200, { CT: AJ }).end(JSON.stringify(settings));
+        }
+        if (pathname === "/settings" && req.method === "PUT") {
+            const data = await readReq(req);
+            try {
+                setData(JSON.parse(data));
+                return res.writeHead(200).end();
+            } catch (e) {
+                return res.writeHead(400, { CT: AJ }).end(JSON.stringify(e));
+            }
+        }
+        if (pathname === "/requestToken") {
+            const data = await readReq(req);
+            try {
+                const parsedData = JSON.parse(data);
+                const params = { grant_type: parsedData.grant_type };
+                if (params.grant_type === "authorization_code") {
+                    params.code = parsedData.code
+                    params.redirect_uri = parsedData.redirect_uri
+                    params.code_verifier = verifications[parsedData.state].codeVerifier
+                }
+                if (params.grant_type === "refresh_token") {
+                    params.refresh_token = parsedData.refresh_token;
+                }
+                const response = await fetch(API_TOKEN_URL, {
+                    method: "POST",
+                    body: new URLSearchParams(params).toString(),
+                    headers: {
+                        [CT]: AX,
+                        Authorization: `Basic ${Buffer.from(`${settings.client_id}:${settings.client_secret}`).toString("base64")}`,
+                    },
+                });
+                if (response.ok) {
+                    return res.writeHead(200, { CT: AJ }).end(JSON.stringify(await response.json()));
+                } else {
+                    return res.writeHead(response.status, { CT: AJ }).end(JSON.stringify(await response.text()));
+                }
+            } catch (e) {
+                console.error(e);
+                return res.writeHead(e.statusCode, { CT: AJ }).end(JSON.stringify(e));
+            }
+        }
+        return res.writeHead(404, { CT: TP }).end();
+    } catch (e) {
+        console.error(e);
+    }
+}
 
 const main = async () => {
     await getSettings();
-    createLocalhost();
+    http.createServer(server).listen(PORT);
 
     console.log(`Open ${settings.redirect_uri}`);
 };

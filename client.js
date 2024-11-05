@@ -1,4 +1,3 @@
-/* Settings passed to client */
 const PLAYER_NAME = "Web Playback SDK [" + new Date().toISOString() + "]";
 
 const inputs = [
@@ -17,19 +16,19 @@ const actions = [
     { action: "playerState", type: "base", requires: 'token' },
     { action: "transfer", type: "base", requires: 'token' },
     { action: "connect", type: "player" },
-    { action: "disconnect", type: "player", },
+    { action: "previousTrack", type: "player", },
+    { action: "pause", type: "player", },
+    { action: "togglePlay", type: "player", },
+    { action: "resume", type: "player", },
+    { action: "nextTrack", type: "player", },
     { action: "getCurrentState", type: "player", },
     { action: "getVolume", type: "player", },
     { action: "setVolume", type: "player", parameter: "0", },
     { action: "setVolume", type: "player", parameter: "0.5", },
     { action: "setVolume", type: "player", parameter: "1", },
-    { action: "pause", type: "player", },
-    { action: "resume", type: "player", },
-    { action: "togglePlay", type: "player", },
-    { action: "previousTrack", type: "player", },
-    { action: "nextTrack", type: "player", },
     { action: "seek", type: "player", parameter: "0", },
-    { action: "seek", type: "player", parameter: "10000", }
+    { action: "seek", type: "player", parameter: "10000", },
+    { action: "disconnect", type: "player", }
 ];
 
 const events = [
@@ -210,8 +209,8 @@ const drawDOM = async () => {
         refresh_token: token?.refresh_token ? token.refresh_token : "",
         url_input: "",
     }
-    
-    const hasClient = client_id.length > 0 && client_secret.length > 0 
+
+    const hasClient = client_id.length > 0 && client_secret.length > 0
     const hasToken = (token?.access_token && token.access_token.length > 0)
 
     const contentElement = document.getElementById("content");
@@ -229,7 +228,7 @@ const drawDOM = async () => {
     const base = { newToken, refreshToken, me, transfer, playerState }
     for (const { action, type, parameter, requires } of actions) {
         const display = ((type == "player" || requires == "token") && hasToken) || (requires == "client" && hasClient)
-        const button = create("button", { style: `display:${display ? 'show' : 'none'};`}, action + (parameter ? `(${parameter})` : ""));
+        const button = create("button", { style: `display:${display ? 'show' : 'none'};` }, action + (parameter ? `(${parameter})` : ""));
         addEvent(button, "click", async () => log({
             [action]: type === 'base' ? await base[action]() : await player[action](parameter),
         }))
