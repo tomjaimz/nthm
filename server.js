@@ -33,7 +33,7 @@ const getSettings = async () => {
     if (fileContents) {
         settings = JSON.parse(fileContents);
     } else {
-        setData({ client_id: "", client_secret: "", redirect_uri: "" });
+        setData({ client_id: "", client_secret: "", redirect_uri: `http://localhost:${PORT}/` });
     }
 };
 
@@ -115,9 +115,11 @@ const createLocalhost = () => {
                     .on("end", async () => {
                         try {
                             setData(JSON.parse(data));
-                            res.writeHead(200);
+                            res.writeHead(200).end();
+                            return;
                         } catch (e) {
                             res.writeHead(400, CT_AJ).end(JSON.stringify(e));
+                            return;
                         }
                     });
                 return;
